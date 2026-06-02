@@ -4,10 +4,48 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql" // On indique bien mysql ici
+  
+}
+
+
+
+// 1. Les Utilisateurs (Étudiants et Toi l'Admin)
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String   // Pour stocker le mot de passe haché
+  role      String   @default("USER") // USER ou ADMIN
+  createdAt DateTime @default(now())
+  comments  Comment[]
+}
+
+// 2. Les Tutoriels (Les cours vidéo que tu vas créer)
+model Tutorial {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique // ex: "apprendre-node-js" pour l'URL
+  description String
+  videoUrl    String    // Le lien de ta vidéo (Vimeo, YouTube, etc.)
+  createdAt   DateTime  @default(now())
+  comments    Comment[]
+}
+
+// 3. Les Commentaires (Qui serviront pour les Tutos ET le Forum)
+model Comment {
+  id         String   @id @default(uuid())
+  content    String   // Le texte en Markdown
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  tutorialId String?  // Optionnel : si le commentaire est sous un tuto
+  tutorial   Tutorial? @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
 }
