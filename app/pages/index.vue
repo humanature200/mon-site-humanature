@@ -62,13 +62,21 @@
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div v-for="tuto in tutorials" :key="tuto.id" class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden shadow-md hover:border-emerald-500/50 transition duration-300">
             <div class="p-6 space-y-3">
-              <span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">Tutoriel</span>
+  <div class="flex justify-between items-center">
+    <span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">Tutoriel</span>
+    <span v-if="tuto.isCompleted" class="bg-emerald-900/60 text-emerald-400 border border-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+      ✅ Terminé
+    </span>
+  </div>
               <h4 class="text-lg font-bold text-white">{{ tuto.title }}</h4>
               <p class="text-gray-400 text-sm line-clamp-2">{{ tuto.description }}</p>
               <div class="pt-2">
-                <button class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 px-4 rounded text-sm transition duration-200">
-                  Voir le cours →
-                </button>
+                <NuxtLink 
+  :to="`/tutorials/${tuto.slug}`" 
+  class="block w-full text-center bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 px-4 rounded text-sm transition duration-200"
+>
+  Voir le cours →
+</NuxtLink>
               </div>
             </div>
           </div>
@@ -144,10 +152,9 @@ const response = ref(null)
 const tutoForm = ref({ title: '', description: '', videoUrl: '' })
 const adminResponse = ref(null)
 
-// Récupération initiale des tutoriels
-const { data: tutorials, refresh: refreshTutorials } = await useFetch('/api/tutorials', {
-  lazy: true,
-  default: () => []
+// On passe dynamiquement le userId pour charger les états "Terminé"
+const { data: tutorials, refresh } = await useFetch('/api/tutorials', {
+  query: { userId: computed(() => user.value?.id || '') }
 })
 
 const handleLogin = async () => {
@@ -183,8 +190,8 @@ const handleCreateTutorial = async () => {
     adminResponse.value = "Tutoriel publié avec succès !"
     tutoForm.value = { title: '', description: '', videoUrl: '' }
     
-    // Rafraîchit instantanément la liste à l'écran sans recharger la page !
-    refreshTutorials()
+    // ✅ CORRIGÉ ICI : On utilise "refresh" (le même nom que dans ton useFetch plus haut)
+    await refresh()
   } catch (error) {
     adminResponse.value = error.statusMessage || "Erreur lors de l'ajout."
   }
