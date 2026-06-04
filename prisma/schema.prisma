@@ -5,55 +5,53 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL") // De retour à la syntaxe classique et stable !
+  url      = env("DATABASE_URL")
 }
 
-
-
-// 1. Les Utilisateurs (Étudiants et Toi l'Admin)
+// 1. Les Utilisateurs
 model User {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  email     String   @unique
-  password  String   // Pour stocker le mot de passe haché
-  role      String   @default("USER") // USER ou ADMIN
-  createdAt DateTime @default(now())
+  email     String     @unique
+  password  String     
+  role      String     @default("USER") // USER ou ADMIN
+  createdAt DateTime   @default(now())
   comments  Comment[]
 }
 
-// 2. Les Tutoriels (Les cours vidéo que tu vas créer)
+// 2. Les Tutoriels (Identifiant calé en String/UUID pour correspondre à ton projet)
 model Tutorial {
   id          String    @id @default(uuid())
   title       String
-  slug        String    @unique // ex: "apprendre-node-js" pour l'URL
-  description String
-  videoUrl    String    // Le lien de ta vidéo (Vimeo, YouTube, etc.)
+  slug        String    @unique // ex: "apprendre-node-js"
+  description String    @db.Text
+  videoUrl    String    
   createdAt   DateTime  @default(now())
   comments    Comment[]
 }
 
-// 3. Les Commentaires (Qui serviront pour les Tutos ET le Forum)
+// 3. Les Commentaires (Version Forum Globale + Option Tuto corrigée)
 model Comment {
   id         String   @id @default(uuid())
-  content    String   // Le texte en Markdown
+  content    String   @db.Text             
   createdAt  DateTime @default(now())
   
-  // Relations
+  // Auteur du message (Liaison Forum)
   authorId   String
   author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  
-  tutorialId String?  // Optionnel : si le commentaire est sous un tuto
+  userName   String   
+
+  // Liaison Optionnelle avec les Tutoriels (Type String? corrigé !)
+  tutorialId String?
   tutorial   Tutorial? @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
 }
 
-
-
+// 4. Suivi de progression (Type tutorialId corrigé en String !)
 model Progress {
   id         Int      @id @default(autoincrement())
   userId     String
-  tutorialId Int
+  tutorialId String
   createdAt  DateTime @default(now())
 
-  // Contrainte d'unicité : un utilisateur ne peut marquer un cours comme terminé qu'une seule fois
   @@unique([userId, tutorialId])
 }

@@ -59,7 +59,58 @@
         </p>
       </div>
 
-    </div>
+      <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-6 shadow-lg">
+        <h3 class="text-xl font-bold text-white border-b border-gray-700 pb-3 flex items-center gap-2">
+          💬 Discussion du Forum ({{ comments?.length || 0 }})
+        </h3>
+
+        <div v-if="user" class="space-y-3">
+          <label class="block text-sm font-medium text-gray-300">Poser une question ou lancer une discussion sur ce cours :</label>
+          <textarea 
+            v-model="newCommentText" 
+            rows="3" 
+            placeholder="Écrivez votre message pour le forum..." 
+            class="w-full p-3 rounded bg-gray-900 border border-gray-700 text-white focus:outline-none focus:border-emerald-500 text-sm resize-none"
+          ></textarea>
+          <div class="flex justify-end">
+            <button 
+              @click="submitComment" 
+              :disabled="!newCommentText.trim() || commentLoading"
+              class="bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-600 disabled:text-gray-400 text-gray-900 font-bold py-2 px-5 rounded text-sm transition duration-200"
+            >
+              {{ commentLoading ? 'Envoi...' : 'Envoyer' }}
+            </button>
+          </div>
+        </div>
+        
+        <div v-else class="bg-gray-900/50 p-4 rounded text-center text-sm text-gray-400 border border-gray-700/50">
+          🔑 Vous devez être connecté pour participer aux discussions de ce forum.
+        </div>
+
+        <div class="space-y-4 pt-2">
+          <div v-if="commentsPending" class="text-center text-sm text-gray-500">
+            Chargement des discussions...
+          </div>
+          <div v-else-if="!comments || comments.length === 0" class="text-center text-sm text-gray-500 py-4">
+            Aucun message pour le moment. Lancez le débat !
+          </div>
+          <div 
+            v-else 
+            v-for="comment in comments" 
+            :key="comment.id" 
+            class="p-4 rounded bg-gray-900/60 border border-gray-700/60 space-y-1 text-sm"
+          >
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-emerald-400">{{ comment.userName }}</span>
+              <span class="text-gray-500">
+                {{ new Date(comment.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
+              </span>
+            </div>
+            <p class="text-gray-300 whitespace-pre-line">{{ comment.content }}</p>
+          </div>
+        </div>
+      </div>
+      </div>
   </div>
 </template>
 
@@ -76,35 +127,65 @@ const user = computed(() => auth.user.value)
 // 1. Récupération du tutoriel
 const { data: tutorial, pending, error } = await useFetch(`/api/tutorials/${slug}`)
 
-// 2. Gestion de l'état "Terminé"
+// 2. Gestion de l'état "Terminé" (Adapté pour tutorialId en String)
 const isCompleted = ref(false)
 const progressLoading = ref(false)
 
-// Aller chercher le statut initial dans MySQL dès que le user et le tuto sont chargés
 watchEffect(async () => {
   if (user.value?.id && tutorial.value?.id) {
     const data = await $fetch('/api/tutorials/progress', {
-      query: { userId: user.value.id, tutorialId: tutorial.value.id }
+      query: { userId: user.value.id, tutorialId: tutorial.value.id } // Transmis directement en String
     })
     isCompleted.value = data.completed
   }
 })
 
-// Action de clic sur le bouton
 const toggleProgress = async () => {
   if (!user.value?.id || !tutorial.value?.id) return
-  
   progressLoading.value = true
   try {
     const data = await $fetch('/api/tutorials/progress', {
       method: 'POST',
-      body: { userId: user.value.id, tutorialId: tutorial.value.id }
+      body: { userId: user.value.id, tutorialId: tutorial.value.id } // Transmis directement en String
     })
     isCompleted.value = data.completed
   } catch (err) {
     console.error("Erreur progression:", err)
   } finally {
     progressLoading.value = false
+  }
+}
+
+// 3. GESTION DES COMMENTAIRES (Adaptée pour le Forum avec authorId et tutorialId en String)
+const newCommentText = ref('')
+const commentLoading = ref(false)
+
+// Récupérer dynamiquement les commentaires associés au tutoriel actuel
+const { data: comments, pending: commentsPending, refresh: refreshComments } = await useFetch('/api/comments', {
+  query: { tutorialId: computed(() => tutorial.value?.id || '') }
+})
+
+// Soumettre le commentaire à l'API du Forum
+const submitComment = async () => {
+  if (!newCommentText.value.trim() || !user.value || !tutorial.value) return
+  
+  commentLoading.value = true
+  try {
+    await $fetch('/api/comments', {
+      method: 'POST',
+      body: {
+        content: newCommentText.value,
+        authorId: user.value.id,   // Envoi sous "authorId" pour ton système de forum
+        userName: user.value.name,
+        tutorialId: tutorial.value.id // Envoi direct en String
+      }
+    })
+    newCommentText.value = '' // Vide le champ de saisie
+    await refreshComments()   // Rafraîchit instantanément la zone de discussion !
+  } catch (err) {
+    console.error("Erreur lors de l'envoi du commentaire :", err)
+  } finally {
+    commentLoading.value = false
   }
 }
 
