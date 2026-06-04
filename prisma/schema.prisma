@@ -19,34 +19,50 @@ model User {
   comments  Comment[]
 }
 
-// 2. Les Tutoriels (Identifiant calé en String/UUID pour correspondre à ton projet)
+// 2. Les Formations (Nouveau : regroupe plusieurs tutoriels comme sur Grafikart)
+model Course {
+  id          String     @id @default(uuid())
+  title       String     // ex: "Devenir Développeur Full-Stack JavaScript"
+  slug        String     @unique
+  description String     @db.Text
+  image       String?    // URL d'une image d'illustration pour la carte
+  createdAt   DateTime   @default(now())
+  tutorials   Tutorial[]
+}
+
+// 3. Les Tutoriels (Enrichis avec une liaison optionnelle à une Formation)
 model Tutorial {
   id          String    @id @default(uuid())
   title       String
-  slug        String    @unique // ex: "apprendre-node-js"
+  slug        String    @unique
   description String    @db.Text
   videoUrl    String    
+  image       String?   // Nouveau : Image miniature pour la carte sur la page d'accueil
+  duration    Int       @default(0) // Nouveau : Durée de la vidéo en minutes (ex: 40)
   createdAt   DateTime  @default(now())
+  
+  // Liaison avec une formation (Optionnelle : un tuto peut être isolé)
+  courseId    String?
+  course      Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  
   comments    Comment[]
 }
 
-// 3. Les Commentaires (Version Forum Globale + Option Tuto corrigée)
+// 4. Les Commentaires (Version Forum Globale)
 model Comment {
   id         String   @id @default(uuid())
   content    String   @db.Text             
   createdAt  DateTime @default(now())
   
-  // Auteur du message (Liaison Forum)
   authorId   String
   author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   userName   String   
 
-  // Liaison Optionnelle avec les Tutoriels (Type String? corrigé !)
   tutorialId String?
   tutorial   Tutorial? @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
 }
 
-// 4. Suivi de progression (Type tutorialId corrigé en String !)
+// 5. Suivi de progression
 model Progress {
   id         Int      @id @default(autoincrement())
   userId     String
